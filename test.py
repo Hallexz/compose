@@ -1,22 +1,29 @@
-import unittest
-from unittest.mock import patch, Mock
-import alarm 
+import pytest
+from programs import app
+from flask import json
+from unittest.mock import patch
+from pymongo import MongoClient
+from mongomock import MongoClient as MockedMongoClient
 
-class TestMemoryUsage(unittest.TestCase):
-    @patch('psutil.Process')
-    def test_memory_usage(self, mock_process):
-        mock_process.return_value.memory_info.return_value.rss = 1024
-        self.assertEqual(alarm.memory_usage(), 1024)
+@pytest.fixture
+def client():
+    app.config['TESTING'] = True
+    with app.test_client() as client:
+        yield client
 
-class TestSendAlert(unittest.TestCase):
-    @patch('requests.post')
-    def test_send_alert(self, mock_post):
-        mock_response = Mock()
-        mock_response.status_code = 200
-        mock_post.return_value = mock_response
+@patch('pymongo.MongoClient', new=MockedMongoClient)
+def test_get(client):
+    response = client.get('/', query_string={'key': 'key'})
+    assert response.status_code == 200
 
-        self.assertEqual(alarm.send_alert(1024), 200)
+@patch('pymongo.MongoClient', new=MockedMongoClient)
+def test_post(client):
+    response = client.post('/', data=json.dumps({'key': 'key', 'value': 'value'}), content_type='application/json')
+    assert response.status_code == 200
+    assert response.get_data(as_text=True) == 'Inserted'
 
-if __name__ == '__main__':
-    unittest.main()
-
+@patch('pymongo.MongoClient', new=MockedMongoClient)
+def test_put(client):
+    response = client.put('/', data=json.dumps({'key': 'key', 'value': 'new_value'}), content_type='application/json')
+    assert response.status_code == 200
+    assert response.get_data(as_text=True) == 'Updated'
