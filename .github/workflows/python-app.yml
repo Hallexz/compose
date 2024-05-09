@@ -21,7 +21,17 @@ jobs:
         username: ${{ secrets.DOCKERHUB_USERNAME }}
         password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-    - name: Build and push Docker image
+    - name: Build Docker image
+      uses: docker/build-push-action@v2
+      with:
+        context: .
+        push: false
+        tags: hallexz/compose:tagname
+
+    - name: Run unit tests
+      run: docker run hallexz/compose:tagname python -m unittest discover
+
+    - name: Push Docker image after successful tests
       uses: docker/build-push-action@v2
       with:
         context: .
